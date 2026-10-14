@@ -1,24 +1,45 @@
 import { useState } from 'react'
 import Brand from '../components/Brand.jsx'
+import { createParentAccount } from '../data/account.js'
 
 function CreateAccountPage() {
   const [notice, setNotice] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const password = formData.get('password')
     const confirmPassword = formData.get('confirm-password')
+    const form = event.currentTarget
 
     if (password !== confirmPassword) {
-      event.currentTarget.elements['confirm-password'].setCustomValidity(
+      form.elements['confirm-password'].setCustomValidity(
         'Passwords do not match.',
       )
-      event.currentTarget.elements['confirm-password'].reportValidity()
+      form.elements['confirm-password'].reportValidity()
       return
     }
 
-    setNotice('Account creation is not connected yet.')
+    setIsSubmitting(true)
+    setNotice('')
+    try {
+      await createParentAccount({
+        name: formData.get('name'),
+        email: formData.get('email'),
+        password,
+      })
+      window.location.hash = '#parent-home'
+    } catch (error) {
+      console.error('Could not create the parent account.', error)
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : 'The account could not be created. Please try again.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   function clearConfirmPasswordError(event) {
@@ -94,8 +115,12 @@ function CreateAccountPage() {
           </span>
         </label>
 
-        <button className="create-submit-button" type="submit">
-          Create account
+        <button
+          className="create-submit-button"
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Creating account…' : 'Create account'}
         </button>
         {notice && (
           <p className="form-notice" role="status">
@@ -111,7 +136,8 @@ function CreateAccountPage() {
         <span className="tip-star" aria-hidden="true">
           ★
         </span>
-        Next, you&apos;ll add your child and set up their learning code.
+        After creating your account, set up your child&apos;s learning code and PIN
+        from the parent dashboard.
       </p>
     </main>
   )

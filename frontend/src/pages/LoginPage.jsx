@@ -1,14 +1,47 @@
 import { useState } from 'react'
 import Brand from '../components/Brand.jsx'
+import { authenticateChild, authenticateParent } from '../data/account.js'
 
-function LoginPage() {
+function LoginPage({ onChildLogin, onParentLogin }) {
   const [role, setRole] = useState('parent')
   const [notice, setNotice] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const isParent = role === 'parent'
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    setNotice('Sign-in is not connected yet.')
+    const formData = new FormData(event.currentTarget)
+    setIsSubmitting(true)
+    setNotice('')
+    try {
+      if (isParent) {
+        const authenticated = await authenticateParent(
+          formData.get('email'),
+          formData.get('password'),
+        )
+        if (!authenticated) {
+          setNotice('Email or password is incorrect. Create an account if you are new.')
+          return
+        }
+        onParentLogin()
+        return
+      }
+
+      const authenticated = await authenticateChild(
+        formData.get('learning-code'),
+        formData.get('pin'),
+      )
+      if (!authenticated) {
+        setNotice('Learning code or PIN is incorrect. Ask your parent to check your access details.')
+        return
+      }
+      onChildLogin()
+    } catch (error) {
+      console.error('Could not sign in.', error)
+      setNotice('Sign in failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   function selectRole(nextRole) {
@@ -97,13 +130,19 @@ function LoginPage() {
                 name="pin"
                 placeholder="••••••••"
                 inputMode="numeric"
+                pattern="[0-9]{4}"
+                maxLength={4}
                 autoComplete="off"
                 required
               />
             </>
           )}
-          <button className="submit-button" type="submit">
-            {isParent ? 'Log in' : "Let's start learning"}
+          <button className="submit-button" type="submit" disabled={isSubmitting}>
+            {isSubmitting
+              ? 'Signing in…'
+              : isParent
+                ? 'Log in'
+                : "Let's start learning"}
           </button>
           {notice && (
             <p className="form-notice" role="status">
